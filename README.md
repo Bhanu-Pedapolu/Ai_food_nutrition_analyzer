@@ -101,8 +101,8 @@ npm run dev
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 19, TypeScript, Vite, Framer Motion, Lucide Icons, React QR Code, React Hot Toast
-- **Backend**: FastAPI, Python 3.12, Uvicorn, Pillow (PIL), Requests, Python-dotenv
-- **AI Engine**: Google Gemini Vision API (`gemini-1.5-flash` / `gemini-2.0-flash`)
+- **Backend**: FastAPI, Python 3.12, Uvicorn, Pillow (PIL), Requests, Google GenAI SDK (`google-genai`), Python-dotenv
+- **AI Engine**: Google Gemini Vision API (`gemini-flash-lite-latest` / `gemini-flash-latest`)
 
 ---
 
