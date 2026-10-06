@@ -5,6 +5,8 @@ Pure Gemini Vision API integration. No Kaggle dataset dependency.
 
 import os
 import json
+import socket
+import time
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
@@ -131,6 +133,123 @@ def config_status():
         "geminiConfigured": is_valid,
         "message": "Ready" if is_valid else "Please set your real GEMINI_API_KEY in backend/.env"
     }
+
+
+# ==========================================
+# Phone QR Companion Session Sync Endpoints
+# ==========================================
+
+_qr_sessions: dict[str, dict] = {}
+
+def get_lan_ip() -> str:
+    """Detects primary LAN IP reachable by smartphone on same Wi-Fi."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except Exception:
+            return "127.0.0.1"
+
+def _cleanup_old_qr_sessions():
+    now = time.time()
+    expired = [sid for sid, d in _qr_sessions.items() if now - d.get("timestamp", 0) > 1800]
+    for sid in expired:
+        _qr_sessions.pop(sid, None)
+
+class QRPingRequest(BaseModel):
+    device_info: Optional[str] = "Mobile Browser"
+
+class QRUploadRequest(BaseModel):
+    image: str
+    device_info: Optional[str] = "Mobile Phone Camera"
+
+@app.get("/api/qr/network-info")
+def get_qr_network_info():
+    """Returns host's LAN IP for generating a mobile-accessible QR code."""
+    lan_ip = get_lan_ip()
+    return {
+        "lan_ip": lan_ip,
+        "backend_url": f"http://{lan_ip}:8000",
+        "companion_path": "/qr-mobile"
+    }
+
+@app.post("/api/qr/session/{session_id}/ping")
+def ping_qr_session(session_id: str, payload: Optional[QRPingRequest] = None):
+    """Notifies desktop that phone opened companion page."""
+    _cleanup_old_qr_sessions()
+    device = payload.device_info if payload and payload.device_info else "Mobile Browser"
+    if session_id not in _qr_sessions:
+        _qr_sessions[session_id] = {
+            "status": "waiting",
+            "connected": True,
+            "image": None,
+            "timestamp": time.time(),
+            "device": device
+        }
+    else:
+        _qr_sessions[session_id]["connected"] = True
+        _qr_sessions[session_id]["timestamp"] = time.time()
+        _qr_sessions[session_id]["device"] = device
+    return {"success": True, "connected": True, "sessionId": session_id}
+
+@app.post("/api/qr/session/{session_id}/upload")
+def upload_qr_image(session_id: str, payload: QRUploadRequest):
+    """Mobile phone uploads captured food photo directly to the desktop session."""
+    _cleanup_old_qr_sessions()
+    if not payload.image:
+        raise HTTPException(status_code=400, detail="No image provided")
+    
+    _qr_sessions[session_id] = {
+        "status": "ready",
+        "connected": True,
+        "image": payload.image,
+        "timestamp": time.time(),
+        "device": payload.device_info or "Mobile Phone Camera"
+    }
+    return {
+        "success": True,
+        "message": "Photo beamed successfully to desktop session",
+        "sessionId": session_id
+    }
+
+@app.get("/api/qr/session/{session_id}")
+def get_qr_session_status(session_id: str):
+    """Polled by desktop to immediately detect phone connection and image upload."""
+    _cleanup_old_qr_sessions()
+    session = _qr_sessions.get(session_id)
+    if not session:
+        return {"status": "waiting", "connected": False, "image": None}
+    
+    if session.get("status") == "ready" and session.get("image"):
+        img = session["image"]
+        # Mark as consumed so subsequent polls do not re-trigger analysis
+        session["status"] = "consumed"
+        return {
+            "status": "ready",
+            "connected": True,
+            "image": img,
+            "device": session.get("device", "Mobile Camera")
+        }
+    
+    return {
+        "status": session.get("status", "waiting"),
+        "connected": session.get("connected", False),
+        "image": None
+    }
+
+@app.post("/api/qr/session/{session_id}/reset")
+def reset_qr_session(session_id: str):
+    """Resets session so user can scan or upload another photo."""
+    if session_id in _qr_sessions:
+        _qr_sessions[session_id]["status"] = "waiting"
+        _qr_sessions[session_id]["image"] = None
+    return {"success": True}
 
 
 if __name__ == "__main__":

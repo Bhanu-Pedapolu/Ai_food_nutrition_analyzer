@@ -4,13 +4,142 @@
 import type { FoodAnalysis } from '../types';
 import { DEMO_ANALYSIS } from '../data/demoData';
 
-const BACKEND_URL = 'http://localhost:8000';
+// Dynamic API base URL that works on localhost, LAN IP (mobile), and proxies
+export const getApiUrl = (path: string): string => {
+  if (typeof window !== 'undefined') {
+    return path.startsWith('/') ? path : `/${path}`;
+  }
+  return `http://localhost:8000${path.startsWith('/') ? path : `/${path}`}`;
+};
 
 export interface AnalysisResult {
   success: boolean;
   data?: FoodAnalysis;
   error?: string;
   isDemoMode?: boolean;
+}
+
+export interface NetworkInfo {
+  lan_ip: string;
+  backend_url: string;
+  companion_path: string;
+}
+
+export interface QRSessionStatus {
+  status: 'waiting' | 'ready' | 'consumed';
+  connected: boolean;
+  image?: string | null;
+  device?: string;
+}
+
+/**
+ * Discovers host LAN IP from FastAPI backend for mobile QR access.
+ */
+export async function getNetworkInfo(): Promise<NetworkInfo | null> {
+  try {
+    const res = await fetch(getApiUrl('/api/qr/network-info'), { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    try {
+      if (typeof window !== 'undefined') {
+        const direct = `http://${window.location.hostname}:8000/api/qr/network-info`;
+        const res = await fetch(direct, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) return await res.json();
+      }
+    } catch {
+      // offline
+    }
+  }
+  return null;
+}
+
+/**
+ * Notifies the desktop session that a mobile phone has connected.
+ */
+export async function pingQRSession(sessionId: string, deviceInfo?: string): Promise<boolean> {
+  try {
+    const res = await fetch(getApiUrl(`/api/qr/session/${sessionId}/ping`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_info: deviceInfo || navigator.userAgent })
+    });
+    return res.ok;
+  } catch {
+    try {
+      if (typeof window !== 'undefined') {
+        const direct = `http://${window.location.hostname}:8000/api/qr/session/${sessionId}/ping`;
+        const res = await fetch(direct, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_info: deviceInfo || navigator.userAgent })
+        });
+        return res.ok;
+      }
+    } catch {
+      // offline
+    }
+    return false;
+  }
+}
+
+/**
+ * Uploads an image captured on mobile directly to the desktop session.
+ */
+export async function uploadQRImage(sessionId: string, imageBase64: string, deviceInfo?: string): Promise<boolean> {
+  try {
+    const res = await fetch(getApiUrl(`/api/qr/session/${sessionId}/upload`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: imageBase64,
+        device_info: deviceInfo || 'Mobile Phone Camera'
+      })
+    });
+    return res.ok;
+  } catch (err) {
+    try {
+      if (typeof window !== 'undefined') {
+        const direct = `http://${window.location.hostname}:8000/api/qr/session/${sessionId}/upload`;
+        const res = await fetch(direct, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: imageBase64,
+            device_info: deviceInfo || 'Mobile Phone Camera'
+          })
+        });
+        return res.ok;
+      }
+    } catch {
+      // offline
+    }
+    return false;
+  }
+}
+
+/**
+ * Checks session state on desktop to receive uploaded mobile photos.
+ */
+export async function checkQRSession(sessionId: string): Promise<QRSessionStatus | null> {
+  try {
+    const res = await fetch(getApiUrl(`/api/qr/session/${sessionId}`));
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    try {
+      if (typeof window !== 'undefined') {
+        const direct = `http://${window.location.hostname}:8000/api/qr/session/${sessionId}`;
+        const res = await fetch(direct);
+        if (res.ok) return await res.json();
+      }
+    } catch {
+      // offline
+    }
+  }
+  return null;
 }
 
 /**
@@ -33,14 +162,14 @@ export async function analyzeFood(
       formData.append('image', imageFile);
       if (titleHint) formData.append('title_hint', titleHint);
       
-      response = await fetch(`${BACKEND_URL}/api/analyze-food`, {
+      response = await fetch(getApiUrl('/api/analyze-food'), {
         method: 'POST',
         body: formData,
         signal: controller.signal
       });
     } else {
       // Base64 data URL string
-      response = await fetch(`${BACKEND_URL}/api/analyze-food`, {
+      response = await fetch(getApiUrl('/api/analyze-food'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,12 +226,20 @@ export async function analyzeFood(
  */
 export async function getBackendStatus(): Promise<{ geminiConfigured: boolean; message: string } | null> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/config/status`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(getApiUrl('/api/config/status'), { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       return await res.json();
     }
   } catch {
-    // Backend offline
+    try {
+      if (typeof window !== 'undefined') {
+        const direct = `http://${window.location.hostname}:8000/api/config/status`;
+        const res = await fetch(direct, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) return await res.json();
+      }
+    } catch {
+      // offline
+    }
   }
   return null;
 }

@@ -9,7 +9,13 @@ import {
 import toast from 'react-hot-toast';
 import QRCode from 'react-qr-code';
 import { useAppStore } from '../store/useAppStore';
-import { analyzeFood, scaleNutrition, getBackendStatus } from '../services/foodAnalysisService';
+import { 
+  analyzeFood, 
+  scaleNutrition, 
+  getBackendStatus,
+  getNetworkInfo,
+  checkQRSession
+} from '../services/foodAnalysisService';
 import { DEMO_ANALYSIS, FOOD_IMAGES } from '../data/demoData';
 import type { FoodAnalysis, AlternativeFood } from '../types';
 import './FoodAnalyzerPage.css';
@@ -206,12 +212,67 @@ export function FoodAnalyzerPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [geminiConfigured, setGeminiConfigured] = useState<boolean | null>(null);
+  const [qrSessionId] = useState(() => 'nv-sync-' + Math.random().toString(36).substring(2, 8));
+  const [lanIp, setLanIp] = useState<string | null>(null);
+  const [qrPhoneConnected, setQrPhoneConnected] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Check if an image was beamed via QR companion
+  // Discover host LAN IP from FastAPI backend for mobile QR access
+  useEffect(() => {
+    getNetworkInfo().then(info => {
+      if (info?.lan_ip) {
+        setLanIp(info.lan_ip);
+      }
+    });
+  }, []);
+
+  // Poll for mobile phone connection and photos beamed via QR session
+  useEffect(() => {
+    let isMounted = true;
+    let timer: any = null;
+
+    const poll = async () => {
+      try {
+        const session = await checkQRSession(qrSessionId);
+        if (!isMounted) return;
+
+        if (session) {
+          if (session.connected && !qrPhoneConnected) {
+            setQrPhoneConnected(true);
+          }
+
+          if (session.status === 'ready' && session.image) {
+            toast.success('📱 Photo received from mobile device! Analyzing with AI...', {
+              icon: '🚀',
+              duration: 4000
+            });
+            setShowQRModal(false);
+            setActiveTab('upload');
+            handleAnalyzeImage(session.image, `Phone Scan (${session.device || 'Mobile'})`);
+            return;
+          }
+        }
+      } catch (err) {
+        // network poll fallback
+      }
+
+      if (isMounted) {
+        timer = setTimeout(poll, 1200);
+      }
+    };
+
+    poll();
+
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [qrSessionId, qrPhoneConnected]);
+
+  // Check if an image was beamed via QR companion (Zustand fallback)
   useEffect(() => {
     if (qrImageUrl) {
       handleAnalyzeImage(qrImageUrl, 'QR Mobile Upload');
@@ -388,7 +449,9 @@ export function FoodAnalyzerPage() {
     return '#ef4444';
   };
 
-  const companionUrl = `${window.location.origin}/qr-mobile?session=nv-sync-849`;
+  const companionPort = window.location.port ? `:${window.location.port}` : '';
+  const mobileHost = lanIp || window.location.hostname;
+  const companionUrl = `${window.location.protocol}//${mobileHost}${companionPort}/qr-mobile?session=${qrSessionId}`;
 
   return (
     <div className="analyzer-page">
@@ -531,14 +594,35 @@ export function FoodAnalyzerPage() {
             {activeTab === 'qr' && (
               <div className="qr-sync-promo">
                 <div className="qr-preview-box">
-                  <QRCode value={companionUrl} size={140} fgColor="#0f172a" bgColor="#ffffff" />
+                  <QRCode value={companionUrl} size={150} fgColor="#0f172a" bgColor="#ffffff" />
                 </div>
                 <div className="qr-sync-text">
-                  <h3>Scan to capture from your phone</h3>
-                  <p>Point your mobile camera at this QR code. Take a snap at your table and watch the analysis appear instantly right here on your desktop screen!</p>
-                  <button className="btn btn-primary btn-sm" onClick={() => setShowQRModal(true)}>
-                    <QrCode size={14} /> Open Fullscreen QR Scanner
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                    <span className="badge badge-accent">
+                      <QrCode size={12} /> Live Device Sync
+                    </span>
+                    {qrPhoneConnected ? (
+                      <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>🟢 Smartphone Connected</span>
+                    ) : (
+                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>📡 Waiting for Phone Scan</span>
+                    )}
+                  </div>
+                  <h3>Scan to capture directly from phone</h3>
+                  <p>Point your smartphone camera at this QR code. Snap your meal at your dining table and watch the nutrition analysis appear automatically right here on your desktop screen!</p>
+                  <div className="qr-status-indicator" style={{ margin: '0.75rem 0' }}>
+                    <span className={`pulse-dot ${qrPhoneConnected ? 'active' : ''}`}></span>{' '}
+                    {qrPhoneConnected 
+                      ? 'Smartphone linked! Snap a photo on your phone now.' 
+                      : 'Listening for incoming phone scan...'}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <button className="btn btn-primary btn-sm" onClick={() => setShowQRModal(true)}>
+                      <QrCode size={14} /> Fullscreen QR Code
+                    </button>
+                    <a href={companionUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
+                      Open Mobile View in New Tab <ArrowRight size={14} />
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
@@ -938,15 +1022,21 @@ export function FoodAnalyzerPage() {
                 <h2>Scan with Your Smartphone</h2>
                 <p>No app install required. Open your phone camera, scan this code, and capture photos directly from your dinner table.</p>
                 <div className="qr-modal-code-wrapper">
-                  <QRCode value={companionUrl} size={200} fgColor="#0b0f19" bgColor="#ffffff" level="H" />
+                  <QRCode value={companionUrl} size={210} fgColor="#0b0f19" bgColor="#ffffff" level="H" />
                 </div>
                 <div className="qr-status-indicator">
-                  <span className="pulse-dot"></span> Listening for incoming mobile uploads...
+                  <span className={`pulse-dot ${qrPhoneConnected ? 'active' : ''}`}></span>{' '}
+                  {qrPhoneConnected 
+                    ? '🟢 Smartphone Connected! Snap or select a food photo on your phone.' 
+                    : 'Listening for incoming mobile uploads... Point camera at QR code'}
                 </div>
                 <div className="qr-test-link-box">
-                  <span>Direct Companion URL:</span>
+                  <span>Companion URL:</span>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', wordBreak: 'break-all', margin: '0.25rem 0' }}>
+                    {companionUrl}
+                  </div>
                   <a href={companionUrl} target="_blank" rel="noreferrer" className="qr-companion-link">
-                    Open Companion in New Tab <ArrowRight size={14} />
+                    Open Companion in New Tab (Test locally) <ArrowRight size={14} />
                   </a>
                 </div>
               </div>
