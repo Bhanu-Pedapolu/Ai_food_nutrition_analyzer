@@ -1,0 +1,408 @@
+/* NutriVision — Meal Planner Styles */
+
+.planner-page {
+  padding-bottom: var(--space-16);
+  min-height: calc(100vh - 64px);
+  background: var(--bg-primary);
+}
+
+.planner-header {
+  padding: var(--space-10) 0 var(--space-4);
+  background: radial-gradient(circle at 50% 0%, rgba(45, 106, 79, 0.15) 0%, transparent 70%);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-6);
+}
+
+.planner-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.planner-title {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.planner-subtitle {
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  max-width: 680px;
+}
+
+/* Week Day Tabs */
+.week-day-tabs {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+.day-tab {
+  flex: 1;
+  min-width: 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.day-tab:hover {
+  border-color: var(--brand-primary);
+  background: rgba(82, 183, 136, 0.05);
+}
+
+.day-tab.active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
+}
+
+.day-name {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+
+.day-date {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.day-tab.active .day-name,
+.day-tab.active .day-date {
+  color: #fff;
+}
+
+/* Base Card */
+.planner-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Daily Macro Banner */
+.daily-macro-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-6);
+  background: linear-gradient(135deg, rgba(45, 106, 79, 0.1) 0%, var(--card-bg) 100%);
+}
+
+.macro-banner-day-info h2 {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.macro-banner-day-info p {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.macro-banner-stats {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+}
+
+.stat-pill strong {
+  color: var(--text-primary);
+}
+
+.stat-pill span {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.pill-dot.pro { background: #3b82f6; }
+.pill-dot.carb { background: #10b981; }
+.pill-dot.fat { background: #f59e0b; }
+
+/* Meals Grid */
+.meals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+}
+
+.meal-card {
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-base);
+}
+
+.meal-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.meal-card__image-wrap {
+  position: relative;
+  height: 180px;
+}
+
+.meal-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.meal-type-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.05em;
+}
+
+.meal-card__body {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.meal-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.meal-card__header h3 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.meal-swap-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.meal-swap-btn:hover {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.meal-card__macros {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+.meal-cal {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.meal-card__ingredients {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+  line-height: 1.5;
+}
+
+.ingredients-label {
+  color: var(--text-tertiary);
+  display: block;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.meal-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.meal-tag-pill {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+/* Swap Modal */
+.swap-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(5, 10, 18, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.swap-modal-dialog {
+  width: 100%;
+  max-width: 520px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-2xl);
+}
+
+.swap-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+}
+
+.swap-modal-header h3 {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  margin-top: var(--space-1);
+}
+
+.swap-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.swap-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.swap-option-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.swap-option-card:hover {
+  border-color: var(--brand-primary);
+  background: rgba(82, 183, 136, 0.05);
+}
+
+.swap-option-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.swap-option-info {
+  flex: 1;
+}
+
+.swap-option-info h4 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.swap-option-info p {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+
+.swap-tags {
+  display: flex;
+  gap: 4px;
+}
+
+.swap-tag-chip {
+  font-size: 9px;
+  background: var(--card-bg);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+}
+
+/* Responsiveness */
+@media (max-width: 900px) {
+  .meals-grid {
+    grid-template-columns: 1fr;
+  }
+  .daily-macro-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 600px) {
+  .macro-banner-stats {
+    flex-wrap: wrap;
+  }
+}

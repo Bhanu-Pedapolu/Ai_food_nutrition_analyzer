@@ -1,0 +1,298 @@
+/* NutriVision — Weather Food Styles */
+
+.weather-page {
+  padding-bottom: var(--space-16);
+  min-height: calc(100vh - 64px);
+  background: var(--bg-primary);
+}
+
+.weather-header {
+  padding: var(--space-10) 0 var(--space-6);
+  background: radial-gradient(circle at 50% 0%, rgba(217, 119, 6, 0.12) 0%, transparent 70%);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-8);
+}
+
+.weather-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.weather-title {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.weather-subtitle {
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  max-width: 680px;
+}
+
+/* City Selector */
+.city-selector-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.city-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.city-pill:hover {
+  border-color: var(--brand-primary);
+  color: var(--text-primary);
+}
+
+.city-pill.active {
+  background: var(--brand-primary);
+  color: #fff;
+  border-color: var(--brand-primary);
+}
+
+/* Base Card */
+.weather-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-8);
+}
+
+/* Current Forecast Card */
+.current-forecast-card {
+  padding: var(--space-8);
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.08) 0%, var(--card-bg) 60%);
+}
+
+.forecast-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.forecast-temp-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.weather-icon-huge {
+  font-size: 52px;
+  line-height: 1;
+}
+
+.current-temp {
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin-bottom: 2px;
+}
+
+.weather-desc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.weather-metrics-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.metric-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.forecast-insight-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+}
+
+.forecast-insight-box p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: var(--space-2);
+}
+
+/* Sections */
+.suggestions-section,
+.seasonal-section {
+  margin-bottom: var(--space-8);
+}
+
+.section-header-row {
+  margin-bottom: var(--space-5);
+}
+
+.section-title {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.section-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* Foods Grid */
+.weather-foods-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+.weather-food-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-base);
+}
+
+.weather-food-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.weather-food-img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.weather-food-body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.weather-food-body h4 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.food-reason {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.food-benefit {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-4);
+}
+
+.weather-food-link {
+  margin-top: auto;
+  font-size: var(--text-xs);
+  color: var(--brand-primary);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+
+/* Seasonal Produce Grid */
+.seasonal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.seasonal-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.seasonal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.seasonal-emoji {
+  font-size: 28px;
+}
+
+.seasonal-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.seasonal-card h4 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.seasonal-benefit {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+  line-height: 1.4;
+}
+
+.seasonal-nutrients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.nutrient-chip {
+  font-size: 9px;
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  color: var(--brand-primary);
+}

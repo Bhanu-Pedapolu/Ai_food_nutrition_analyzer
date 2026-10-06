@@ -1,0 +1,17 @@
+{
+  "dataset_id": "pes12017000148/food-ingredients-and-recipe-dataset-with-images",
+  "dataset_path": "D:\\ai food nutrition analyzer\\backend\\data\\kaggle_dataset",
+  "csv_path": "D:\\ai food nutrition analyzer\\backend\\data\\kaggle_dataset\\Food Ingredients and Recipe Dataset with Image Name Mapping.csv",
+  "csv_name": "Food Ingredients and Recipe Dataset with Image Name Mapping.csv",
+  "images_dir": "D:\\ai food nutrition analyzer\\backend\\data\\kaggle_dataset\\Food Images\\Food Images",
+  "total_images": 13582,
+  "total_rows": 13501,
+  "columns": [
+    "Unnamed: 0",
+    "Title",
+    "Ingredients",
+    "Instructions",
+    "Image_Name",
+    "Cleaned_Ingredients"
+  ]
+}

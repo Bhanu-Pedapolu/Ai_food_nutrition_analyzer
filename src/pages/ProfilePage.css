@@ -1,0 +1,260 @@
+/* NutriVision — Profile Page Styles */
+
+.profile-page {
+  padding-bottom: var(--space-16);
+  min-height: calc(100vh - 64px);
+  background: var(--bg-primary);
+}
+
+.profile-header {
+  padding: var(--space-10) 0 var(--space-6);
+  background: radial-gradient(circle at 50% 0%, rgba(45, 106, 79, 0.15) 0%, transparent 70%);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-8);
+}
+
+.profile-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.profile-avatar-block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.profile-avatar-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2d6a4f, #52b788);
+  color: #fff;
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(45, 106, 79, 0.35);
+}
+
+.profile-name {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  margin: 2px 0;
+}
+
+.profile-email {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.theme-toggle-group {
+  display: flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  padding: 4px;
+  gap: 4px;
+}
+
+.theme-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all var(--transition-base);
+}
+
+.theme-btn:hover {
+  color: var(--text-primary);
+}
+
+.theme-btn.active {
+  background: var(--card-bg);
+  color: var(--brand-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Grid & Cards */
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--space-6);
+}
+
+.profile-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-heading-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-heading-row h3 {
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.form-group {
+  margin-bottom: var(--space-5);
+}
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: var(--space-2);
+}
+
+/* Diet Grid */
+.diet-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--space-2);
+}
+
+.diet-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.diet-option-btn:hover {
+  border-color: var(--brand-primary);
+}
+
+.diet-option-btn.active {
+  background: rgba(82, 183, 136, 0.12);
+  border-color: var(--brand-primary);
+}
+
+.diet-icon {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.diet-name {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Goals List */
+.goal-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.goal-option-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.goal-option-card:hover {
+  border-color: var(--brand-primary);
+}
+
+.goal-option-card.active {
+  background: rgba(82, 183, 136, 0.1);
+  border-color: var(--brand-primary);
+}
+
+.goal-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.goal-option-card.active .goal-radio {
+  border-color: var(--brand-primary);
+}
+
+.goal-radio-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.goal-info h4 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.goal-info p {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+/* Inputs */
+.profile-input {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: all var(--transition-base);
+}
+
+.profile-input:focus {
+  border-color: var(--brand-primary);
+}
+
+.profile-card-footer {
+  margin-top: var(--space-8);
+}
+
+.save-profile-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
