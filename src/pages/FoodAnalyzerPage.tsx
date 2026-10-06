@@ -9,11 +9,7 @@ import {
 import toast from 'react-hot-toast';
 import QRCode from 'react-qr-code';
 import { useAppStore } from '../store/useAppStore';
-import {
-  analyzeFood, scaleNutrition,
-  searchKaggleRecipes, getRecipeDetails, getDatasetStatus,
-  type KaggleRecipeSummary, type DatasetStatus
-} from '../services/foodAnalysisService';
+import { analyzeFood, scaleNutrition, getBackendStatus } from '../services/foodAnalysisService';
 import { DEMO_ANALYSIS, FOOD_IMAGES } from '../data/demoData';
 import type { FoodAnalysis, AlternativeFood } from '../types';
 import './FoodAnalyzerPage.css';
@@ -199,7 +195,7 @@ const SAMPLE_DISHES = [
 
 export function FoodAnalyzerPage() {
   const { addToHistory, setCurrentAnalysis, addHydration, currentAnalysis, qrImageUrl } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'upload' | 'camera' | 'samples' | 'qr' | 'recipes'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'camera' | 'samples' | 'qr'>('upload');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
@@ -209,13 +205,7 @@ export function FoodAnalyzerPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
-
-  // Kaggle Dataset states
-  const [datasetRecipes, setDatasetRecipes] = useState<KaggleRecipeSummary[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string>('all');
-  const [isLoadingRecipes, setIsLoadingRecipes] = useState(false);
-  const [datasetStatus, setDatasetStatus] = useState<DatasetStatus | null>(null);
+  const [geminiConfigured, setGeminiConfigured] = useState<boolean | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -228,57 +218,12 @@ export function FoodAnalyzerPage() {
     }
   }, [qrImageUrl]);
 
-  // Load dataset status on mount
+  // Check Gemini Vision API backend status on mount
   useEffect(() => {
-    getDatasetStatus().then(status => {
-      if (status) setDatasetStatus(status);
+    getBackendStatus().then(status => {
+      if (status) setGeminiConfigured(status.geminiConfigured);
     });
   }, []);
-
-  const handleSearchRecipes = async (query = searchQuery, tag = selectedTag) => {
-    setIsLoadingRecipes(true);
-    const filterTag = tag === 'all' ? undefined : tag;
-    const results = await searchKaggleRecipes(query, filterTag, undefined, 18);
-    setDatasetRecipes(results);
-    setIsLoadingRecipes(false);
-  };
-
-  const handleSelectKaggleRecipe = async (recipeSummary: KaggleRecipeSummary) => {
-    toast.loading('Loading complete recipe & clinical nutrition profile...', { id: 'loading-recipe' });
-    const fullDetail = await getRecipeDetails(recipeSummary.id);
-    toast.dismiss('loading-recipe');
-    if (fullDetail) {
-      const mappedAnalysis: FoodAnalysis = {
-        id: `kaggle-recipe-${fullDetail.id}`,
-        userId: 'user-current',
-        foodName: fullDetail.title,
-        confidence: 99,
-        imageUrl: fullDetail.imageUrl,
-        possibleIngredients: fullDetail.ingredients,
-        servingSize: fullDetail.servingSize,
-        servingSizeGrams: 300,
-        currentServings: 1,
-        nutrition: fullDetail.nutrition,
-        allergens: fullDetail.allergens,
-        dietaryTags: fullDetail.dietaryTags as any,
-        healthConsiderations: fullDetail.healthConsiderations || [],
-        alternatives: fullDetail.alternatives || [],
-        recipeInstructions: fullDetail.instructions,
-        recipeId: fullDetail.id,
-        datasetSource: 'pes12017000148/food-ingredients-and-recipe-dataset-with-images',
-        createdAt: new Date(),
-        source: 'upload'
-      };
-      setResult(mappedAnalysis);
-      setCurrentAnalysis(mappedAnalysis);
-      setSelectedImage(fullDetail.imageUrl);
-      setServingsMultiplier(1);
-      toast.success(`Loaded: ${fullDetail.title}`, { icon: '📖' });
-
-      // Scroll to results
-      window.scrollTo({ top: 600, behavior: 'smooth' });
-    }
-  };
 
   // Clean up camera stream on unmount
   useEffect(() => {
@@ -475,16 +420,6 @@ export function FoodAnalyzerPage() {
               <Sparkles size={16} /> Preset Dishes
             </button>
             <button
-              className={`analyzer-tab ${activeTab === 'recipes' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('recipes');
-                stopCamera();
-                if (datasetRecipes.length === 0) handleSearchRecipes();
-              }}
-            >
-              <BookOpen size={16} /> Kaggle Recipes
-            </button>
-            <button
               className={`analyzer-tab ${activeTab === 'qr' ? 'active' : ''}`}
               onClick={() => { setActiveTab('qr'); setShowQRModal(true); stopCamera(); }}
             >
@@ -595,103 +530,6 @@ export function FoodAnalyzerPage() {
                     <QrCode size={14} /> Open Fullscreen QR Scanner
                   </button>
                 </div>
-              </div>
-            )}
-
-            {/* Kaggle Dataset Recipes Explorer */}
-            {activeTab === 'recipes' && (
-              <div className="kaggle-recipes-tab-content">
-                <div className="kaggle-search-header">
-                  <div className="kaggle-search-bar">
-                    <div className="kaggle-search-input-wrap">
-                      <Search size={16} />
-                      <input
-                        type="text"
-                        className="kaggle-search-input"
-                        placeholder="Search 13,500+ recipes (e.g. biryani, salmon, quinoa, pasta, salad)..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                          setSearchQuery(e.target.value);
-                          handleSearchRecipes(e.target.value, selectedTag);
-                        }}
-                      />
-                    </div>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleSearchRecipes()}
-                    >
-                      Search
-                    </button>
-                  </div>
-
-                  <div className="kaggle-filter-tags">
-                    {[
-                      { id: 'all', label: 'All Dishes' },
-                      { id: 'high-protein', label: 'High Protein' },
-                      { id: 'vegan', label: 'Vegan' },
-                      { id: 'vegetarian', label: 'Vegetarian' },
-                      { id: 'low-carb', label: 'Low Carb' },
-                      { id: 'gluten-free', label: 'Gluten Free' }
-                    ].map(tag => (
-                      <button
-                        key={tag.id}
-                        className={`kaggle-tag-chip ${selectedTag === tag.id ? 'active' : ''}`}
-                        onClick={() => {
-                          setSelectedTag(tag.id);
-                          handleSearchRecipes(searchQuery, tag.id);
-                        }}
-                      >
-                        {tag.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {isLoadingRecipes ? (
-                  <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-secondary)' }}>
-                    <RefreshCw size={24} className="spin-pulse" style={{ margin: '0 auto 1rem' }} />
-                    <p>Searching Kaggle Recipe Database & Calculating Nutrition...</p>
-                  </div>
-                ) : datasetRecipes.length > 0 ? (
-                  <div className="kaggle-recipes-grid">
-                    {datasetRecipes.map(recipe => (
-                      <div key={recipe.id} className="kaggle-recipe-card">
-                        <div className="kaggle-recipe-img-wrap">
-                          <img
-                            src={recipe.imageUrl}
-                            alt={recipe.title}
-                            className="kaggle-recipe-img"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/salad-bowl.jpg'; }}
-                          />
-                          <span className="kaggle-recipe-cal-badge">{recipe.calories} kcal</span>
-                        </div>
-                        <div className="kaggle-recipe-body">
-                          <h4 className="kaggle-recipe-title">{recipe.title}</h4>
-                          <div className="kaggle-recipe-macros">
-                            <span>{recipe.protein}g P</span>
-                            <span>{recipe.carbohydrates}g C</span>
-                            <span>{recipe.fat}g F</span>
-                            <span>{recipe.servingSize}</span>
-                          </div>
-                          <button
-                            className="btn btn-secondary btn-sm kaggle-recipe-action"
-                            onClick={() => handleSelectKaggleRecipe(recipe)}
-                          >
-                            <ChefHat size={14} /> Analyze & View Recipe
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '2.5rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
-                    <BookOpen size={36} style={{ color: 'var(--text-tertiary)', marginBottom: '0.75rem' }} />
-                    <h4>Kaggle Dataset Ready to Query</h4>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                      Type a keyword above or select a dietary filter to search the indexed Kaggle recipes database.
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -961,19 +799,16 @@ export function FoodAnalyzerPage() {
               </div>
             </div>
 
-            {/* Preparation Guide Card (from Kaggle Dataset) */}
+            {/* Preparation Guide Card (from AI Analysis) */}
             {result.recipeInstructions && (
               <div className="analyzer-card recipe-guide-card" style={{ marginTop: 'var(--space-6)' }}>
                 <div className="card-header-row">
                   <div>
                     <div className="badge badge-accent" style={{ marginBottom: '0.5rem' }}>
-                      <ChefHat size={14} /> Kaggle Recipe Dataset & Preparation Guide
+                      <ChefHat size={14} /> AI Culinary Preparation Guide
                     </div>
-                    <h3 className="section-heading">Step-by-Step Cooking Instructions</h3>
+                    <h3 className="section-heading">Preparation & Cooking Method</h3>
                   </div>
-                  {result.recipeId && (
-                    <span className="badge badge-neutral">Kaggle Recipe #{result.recipeId}</span>
-                  )}
                 </div>
                 <div className="recipe-instructions-body">
                   <p className="recipe-instructions-text">{result.recipeInstructions}</p>

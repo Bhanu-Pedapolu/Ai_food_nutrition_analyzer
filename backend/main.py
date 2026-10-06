@@ -1,36 +1,42 @@
 """
-FastAPI Backend for NutriVision — AI Food Nutrition & Wellness Platform
-Integrates Kaggle Dataset (pes12017000148/food-ingredients-and-recipe-dataset-with-images)
-with AI Food Recognition, SQLite Database, and Nutrition Engine.
+NutriVision FastAPI Backend — Gemini Vision Edition
+Pure Gemini Vision API integration. No Kaggle dataset dependency.
 """
 
 import os
 import json
 from pathlib import Path
-from typing import Optional, List
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+# Resilient .env loader without requiring external packages
+def _load_env():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+    env_file = Path(__file__).parent / ".env"
+    if env_file.exists():
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip())
+        except Exception:
+            pass
 
-from .services.nutrition_engine import NutritionEngine
-from .services.food_database import FoodDatabase
-from .services.food_recognition import FoodRecognitionService
-
-# Initialize paths & services
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MANIFEST_PATH = PROJECT_ROOT / "backend" / "data" / "dataset_manifest.json"
-
-db = FoodDatabase()
-recognition_service = FoodRecognitionService(db)
+_load_env()
 
 app = FastAPI(
-    title="NutriVision API",
-    description="Backend API with Kaggle Recipe Dataset integration, AI vision analysis, and clinical nutrition calculations",
-    version="1.0.0"
+    title="NutriVision API — Gemini Vision Edition",
+    description="Genuine AI food recognition powered by Google Gemini Vision API",
+    version="2.0.0"
 )
 
-# Enable CORS for local Vite dev server
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,53 +45,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydantic models for request bodies
-class Base64AnalyzeRequest(BaseModel):
-    image: str
-    titleHint: Optional[str] = None
-    userId: Optional[str] = "user-default"
+# Lazily initialized GeminiVisionService
+_gemini_service = None
 
-class CalculateNutritionRequest(BaseModel):
-    title: str
-    ingredients: List[str]
-    servings: Optional[int] = 4
+def get_gemini_service():
+    global _gemini_service
+    if _gemini_service is None:
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        if not api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="GEMINI_API_KEY is not configured. Set it in backend/.env or as an environment variable."
+            )
+        from .services.gemini_vision import GeminiVisionService
+        _gemini_service = GeminiVisionService(api_key=api_key)
+    return _gemini_service
+
 
 @app.get("/api/health")
 def health_check():
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     return {
         "status": "healthy",
-        "service": "NutriVision API",
-        "database": db.get_stats()
+        "service": "NutriVision API — Gemini Vision Edition",
+        "version": "2.0.0",
+        "gemini_configured": bool(api_key),
     }
 
-@app.get("/api/dataset/status")
-def get_dataset_status():
-    manifest = {}
-    if MANIFEST_PATH.exists():
-        try:
-            with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
-                manifest = json.load(f)
-        except Exception:
-            pass
-
-    stats = db.get_stats()
-    return {
-        "isIndexed": stats["totalRecipes"] > 0,
-        "databaseStats": stats,
-        "manifest": manifest
-    }
-
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Request
 
 @app.post("/api/analyze-food")
-async def analyze_food_endpoint(request: Request):
+async def analyze_food(request: Request):
     """
-    Analyzes a food image (multipart file upload OR base64 JSON payload),
-    performs AI visual recognition, links to Kaggle recipe, and returns calculated nutrition.
+    Analyzes a food image using Google Gemini Vision API.
+    Accepts multipart file upload OR JSON with base64 image.
+    Returns complete nutritional analysis with accurate food identification.
     """
+    service = get_gemini_service()
     content_type = request.headers.get("content-type", "")
+
     img_bytes = None
-    title = None
     img_data_url = None
 
     if "application/json" in content_type:
@@ -94,102 +92,40 @@ async def analyze_food_endpoint(request: Request):
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid JSON body")
         raw_img = body.get("image", "")
-        title = body.get("titleHint")
         if not raw_img:
-            raise HTTPException(status_code=400, detail="No image found in JSON payload")
-        img_bytes = recognition_service.decode_base64_image(raw_img)
+            raise HTTPException(status_code=400, detail="No 'image' field in JSON payload")
+        img_bytes = service.decode_base64_image(raw_img)
         img_data_url = raw_img
     else:
         form = await request.form()
-        title = form.get("title_hint") or form.get("titleHint")
         if "image" in form and hasattr(form["image"], "read"):
             img_bytes = await form["image"].read()
         elif "image_base64" in form:
             raw_img = str(form["image_base64"])
-            img_bytes = recognition_service.decode_base64_image(raw_img)
+            img_bytes = service.decode_base64_image(raw_img)
             img_data_url = raw_img
         else:
-            raise HTTPException(status_code=400, detail="No image provided. Supply file or base64 string.")
+            raise HTTPException(status_code=400, detail="No image provided. Supply a file or base64 string.")
 
     try:
-        result = recognition_service.analyze_image(
+        result = service.analyze_image(
             image_bytes=img_bytes,
-            title_hint=title,
-            image_url=img_data_url
+            image_url=img_data_url,
         )
-        return {
-            "success": True,
-            "data": result
-        }
+        return {"success": True, "data": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Gemini Vision analysis failed: {str(e)}")
 
-@app.get("/api/foods/search")
-def search_foods(
-    q: str = Query("", description="Recipe name or ingredient search"),
-    tag: Optional[str] = Query(None, description="Dietary tag filter e.g. vegan, high-protein"),
-    max_cals: Optional[int] = Query(None, alias="maxCalories"),
-    limit: int = Query(20, le=100),
-    offset: int = Query(0, ge=0)
-):
-    """Searches recipes from the Kaggle dataset with FTS5 and dietary filters."""
-    results = db.search_recipes(
-        query=q,
-        tag=tag,
-        max_calories=max_cals,
-        limit=limit,
-        offset=offset
-    )
+
+@app.get("/api/config/status")
+def config_status():
+    """Returns the current API configuration status."""
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     return {
-        "success": True,
-        "count": len(results),
-        "query": q,
-        "results": results
+        "geminiConfigured": bool(api_key),
+        "message": "Ready" if api_key else "Please set GEMINI_API_KEY in backend/.env"
     }
 
-@app.get("/api/recipes/{recipe_id}")
-def get_recipe(recipe_id: int):
-    """Returns full details, ingredients, instructions, and nutrition for a Kaggle recipe."""
-    recipe = db.get_recipe_by_id(recipe_id)
-    if not recipe:
-        raise HTTPException(status_code=404, detail="Recipe not found")
-    return {
-        "success": True,
-        "recipe": recipe
-    }
-
-@app.get("/api/recipes/{recipe_id}/image")
-def get_recipe_image(recipe_id: int):
-    """Serves the recipe food photo from the Kaggle dataset."""
-    recipe = db.get_recipe_by_id(recipe_id)
-    if not recipe:
-        raise HTTPException(status_code=404, detail="Recipe not found")
-
-    with db.get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT image_path FROM recipes WHERE id = ?", (recipe_id,))
-        row = cursor.fetchone()
-        if row and row["image_path"] and Path(row["image_path"]).exists():
-            return FileResponse(row["image_path"], media_type="image/jpeg")
-
-    # Fallback default image
-    public_img = PROJECT_ROOT / "public" / "salad-bowl.jpg"
-    if public_img.exists():
-        return FileResponse(str(public_img), media_type="image/jpeg")
-    raise HTTPException(status_code=404, detail="Image not available")
-
-@app.post("/api/nutrition/calculate")
-def calculate_custom_nutrition(req: CalculateNutritionRequest):
-    """Calculates nutrition profile dynamically for custom ingredients list."""
-    profile = NutritionEngine.calculate_recipe_nutrition(
-        recipe_title=req.title,
-        ingredients=req.ingredients,
-        servings_hint=req.servings or 4
-    )
-    return {
-        "success": True,
-        "profile": profile
-    }
 
 if __name__ == "__main__":
     import uvicorn

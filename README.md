@@ -1,26 +1,23 @@
 # NutriVision — AI Food Nutrition & Personalized Wellness Platform
 
 > **See Your Food. Understand Your Nutrition.**  
-> A high-end AI nutrition and dietary intelligence web application integrated with the Kaggle Food Ingredients & Recipe Dataset (13,500+ recipes), custom visual food recognition, and a clinical-grade nutrition engine.
+> A high-end AI nutrition and dietary intelligence web application powered by **Google Gemini Vision API** for genuine visual food identification, clinical-grade nutrition analysis, and personalized wellness insights.
 
 ---
 
 ## 🌟 Key Features
 
-- **AI Vision Food Analyzer**:
-  - Upload meal photos, capture live snaps, or scan via Mobile QR companion.
-  - Multi-item visual detection, plate boundary recognition, and portion volume estimation.
-  - Sub-second classification mapped to curated dish categories and recipes.
-- **Kaggle Dataset Integration** (`pes12017000148/food-ingredients-and-recipe-dataset-with-images`):
-  - 13,496 indexed recipes with over 13,460 linked food photographs.
-  - Full-text search (SQLite FTS5) across recipe names and ingredients.
-  - Interactive recipe explorer with instant search, dietary tags, and step-by-step cooking guides.
-- **Clinical Nutrition & Micronutrient Engine**:
-  - Solves raw recipe calorie ambiguity with standard reference macronutrient & ingredient weighting.
-  - Accurately computes calories, protein, carbohydrates, healthy fats, fiber, sugar, and sodium.
-  - Micronutrient tracking: Vitamin A, C, B12, Folate, Iron, Calcium, Potassium, Magnesium.
-  - Allergen detection across 8 major food groups (Dairy, Gluten, Nuts, Eggs, Soy, Seafood, Sesame).
-  - Clinical health flags and smart healthier alternatives.
+- **Google Gemini Vision AI Food Analyzer**:
+  - Upload meal photos, capture live camera snaps, or scan via Mobile QR companion.
+  - Multi-item visual detection, accurate dish identification, and portion volume estimation powered by Gemini Vision.
+  - Real culinary recognition (e.g. "Paneer Butter Masala", "Chicken Biryani", "Caesar Salad", "Avocado Toast").
+- **Clinical Nutrition & Micronutrient Breakdown**:
+  - Accurately computes calories, protein, carbohydrates, healthy fats, fiber, sugar, sodium, and cholesterol.
+  - Detailed micronutrient tracking: Vitamin A, C, D, B-complex, Iron, Calcium, Potassium, Magnesium.
+  - Allergen detection across major food groups (Dairy, Gluten, Nuts, Eggs, Soy, Seafood, Sesame).
+  - Health considerations, dietary tags (vegan, high-protein, keto-friendly, etc.), and healthier meal swaps.
+- **AI Culinary Preparation Guide**:
+  - Step-by-step cooking instructions and preparation methods generated dynamically for the recognized dish.
 - **Personalized Wellness Hub**:
   - Interactive Macro Dashboard with circular gauge rings and calorie targets.
   - Weather-Adaptive Dietary Insights (hydrating suggestions for warm days, warm soups for cold weather).
@@ -40,13 +37,10 @@ User Meal Photo / Mobile QR Camera
 [FastAPI Backend: POST /api/analyze-food]
                  │
                  ▼
-    [AI Vision Recognition Service]
+     [Google Gemini Vision API]
                  │
                  ▼
-  [Food Database (SQLite + FTS5)] ◄─── Kaggle Dataset (13,500+ Recipes)
-                 │
-                 ▼
-      [Nutrition Data Layer] ◄──────── Ingredient Parsing & Macro Calculation
+    [Clinical Nutrition Layer]
                  │
                  ▼
  [NutriVision Frontend (React/TS)] ◄── Instant Interactive Nutritional Cards
@@ -59,16 +53,32 @@ User Meal Photo / Mobile QR Camera
 ### 1. Prerequisites
 - **Node.js** (v18+) & **npm**
 - **Python** (v3.10+) & **pip**
-- **Git**
+- **Google Gemini API Key** (from [Google AI Studio](https://aistudio.google.com/))
 
 ---
 
-### 2. Frontend Setup
-```bash
-# Clone the repository
-git clone https://github.com/Bhanu-Pedapolu/Ai_food_nutrition_analyzer.git
-cd Ai_food_nutrition_analyzer
+### 2. Configure Backend & API Key
 
+1. Navigate to the backend directory and set your Gemini API key in `backend/.env`:
+```env
+GEMINI_API_KEY=AIzaSy...your_actual_key_here...
+```
+
+2. Install Python backend requirements:
+```bash
+pip install -r requirements.txt
+```
+
+3. Start the FastAPI backend server:
+```bash
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+---
+
+### 3. Frontend Setup
+
+```bash
 # Install frontend dependencies
 npm install
 
@@ -78,44 +88,12 @@ npm run dev
 
 ---
 
-### 3. Backend Setup
-```bash
-# Install Python backend requirements
-pip install fastapi uvicorn pandas pillow kagglehub python-multipart
-
-# Download and inspect the Kaggle dataset
-python backend/scripts/download_food_dataset.py
-
-# Ingest and index recipes into SQLite with FTS5 search
-python backend/scripts/index_dataset.py
-
-# Start the FastAPI backend server (runs on http://127.0.0.1:8000)
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
----
-
-### 4. Running Verification Tests
-```bash
-# Run pipeline and unit tests
-python backend/scripts/test_pipeline.py
-
-# Run end-to-end API integration tests
-python backend/scripts/verify_e2e.py
-```
-
----
-
 ## 📡 API Reference
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/analyze-food` | Multi-modal food recognition with complete nutrition breakdown |
-| `GET` | `/api/foods/search` | Search Kaggle recipes with full-text search & dietary filters |
-| `GET` | `/api/recipes/{id}` | Full recipe instructions, ingredients & micronutrient facts |
-| `GET` | `/api/recipes/{id}/image` | Streams recipe photo directly from dataset |
-| `POST` | `/api/nutrition/calculate` | Custom ingredient nutrition calculator |
-| `GET` | `/api/dataset/status` | Dataset indexing statistics & manifest |
+| `POST` | `/api/analyze-food` | Multi-modal food recognition with complete nutrition breakdown via Gemini Vision |
+| `GET` | `/api/config/status` | Checks if Gemini API key is configured |
 | `GET` | `/api/health` | Service health status |
 
 ---
@@ -123,9 +101,8 @@ python backend/scripts/verify_e2e.py
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 19, TypeScript, Vite, Framer Motion, Lucide Icons, React QR Code, React Hot Toast
-- **Backend**: FastAPI, Python 3.12, Uvicorn, Pillow (PIL), NumPy, Pandas
-- **Storage**: SQLite with FTS5 Full-Text Search
-- **Data Source**: Kaggle (`pes12017000148/food-ingredients-and-recipe-dataset-with-images`)
+- **Backend**: FastAPI, Python 3.12, Uvicorn, Pillow (PIL), Requests, Python-dotenv
+- **AI Engine**: Google Gemini Vision API (`gemini-1.5-flash` / `gemini-2.0-flash`)
 
 ---
 

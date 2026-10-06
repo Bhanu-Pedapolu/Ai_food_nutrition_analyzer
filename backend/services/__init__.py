@@ -1,6 +1,4 @@
-# NutriVision Services
-from .nutrition_engine import NutritionEngine
-from .food_database import FoodDatabase
-from .food_recognition import FoodRecognitionService
+# NutriVision Backend Services
+from .gemini_vision import GeminiVisionService
 
-__all__ = ["NutritionEngine", "FoodDatabase", "FoodRecognitionService"]
+__all__ = ["GeminiVisionService"]

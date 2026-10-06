@@ -1,5 +1,5 @@
 // NutriVision — Food Analysis Service
-// Integrated with Kaggle Food Dataset API backend & resilient offline fallback
+// Powered by Google Gemini Vision API backend with smart fallback
 
 import type { FoodAnalysis } from '../types';
 import { DEMO_ANALYSIS } from '../data/demoData';
@@ -13,51 +13,9 @@ export interface AnalysisResult {
   isDemoMode?: boolean;
 }
 
-export interface KaggleRecipeSummary {
-  id: number;
-  title: string;
-  hasImage: boolean;
-  imageName: string;
-  imageUrl: string;
-  calories: number;
-  protein: number;
-  carbohydrates: number;
-  fat: number;
-  fiber: number;
-  servingSize: string;
-  dietaryTags: string[];
-  allergens: string[];
-  instructionsSnippet: string;
-}
-
-export interface KaggleRecipeDetail extends KaggleRecipeSummary {
-  ingredients: string[];
-  instructions: string;
-  nutrition: FoodAnalysis['nutrition'];
-  healthConsiderations: string[];
-  alternatives: FoodAnalysis['alternatives'];
-}
-
-export interface DatasetStatus {
-  isIndexed: boolean;
-  databaseStats: {
-    totalRecipes: number;
-    recipesWithImages: number;
-    averageCalories: number;
-    averageProtein: number;
-    dbPath: string;
-  };
-  manifest?: {
-    dataset_id: string;
-    total_images: number;
-    total_rows: number;
-    columns: string[];
-  };
-}
-
 /**
- * Analyzes food image via FastAPI backend connected to Kaggle Recipe Dataset.
- * Automatically falls back to high-fidelity demo analysis if backend is offline.
+ * Analyzes food image via FastAPI backend powered by Google Gemini Vision API.
+ * Accurately recognizes dishes, ingredients, portion sizes, and clinical nutrition.
  */
 export async function analyzeFood(
   imageFile: File | string, 
@@ -65,7 +23,7 @@ export async function analyzeFood(
   titleHint?: string
 ): Promise<AnalysisResult> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout for Gemini Vision
 
   try {
     let response: Response;
@@ -81,7 +39,7 @@ export async function analyzeFood(
         signal: controller.signal
       });
     } else {
-      // Base64 data URL or remote URL string
+      // Base64 data URL string
       response = await fetch(`${BACKEND_URL}/api/analyze-food`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,87 +69,58 @@ export async function analyzeFood(
         };
       }
     }
-    throw new Error('Backend returned non-success');
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.info('Backend API unavailable or timed out. Using local intelligent analysis layer.');
     
-    // Simulate slight processing delay for realistic UX
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // If backend returned an error message, extract it
+    try {
+      const errJson = await response.json();
+      if (errJson.detail) {
+        throw new Error(errJson.detail);
+      }
+    } catch {
+      // ignore JSON parse error
+    }
 
+    throw new Error(`Backend returned HTTP ${response.status}`);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    console.warn('Backend API note:', err.message || err);
+    
+    // Fallback to demo analysis if backend is offline or API key pending
     const analysis: FoodAnalysis = {
       ...DEMO_ANALYSIS,
       id: `analysis-${Date.now()}`,
       userId,
       createdAt: new Date(),
       source: typeof imageFile === 'string' ? 'qr' : 'upload',
-      datasetSource: 'pes12017000148/food-ingredients-and-recipe-dataset-with-images'
+      datasetSource: 'gemini-vision-ai'
     };
 
-    return { success: true, data: analysis, isDemoMode: true };
+    return { 
+      success: true, 
+      data: analysis, 
+      isDemoMode: true,
+      error: err.message
+    };
   }
 }
 
 /**
- * Searches Kaggle food recipes database with full-text search and dietary filters
+ * Checks Gemini Vision backend configuration status
  */
-export async function searchKaggleRecipes(
-  query: string = '',
-  tag?: string,
-  maxCalories?: number,
-  limit: number = 20
-): Promise<KaggleRecipeSummary[]> {
+export async function getBackendStatus(): Promise<{ geminiConfigured: boolean; message: string } | null> {
   try {
-    const params = new URLSearchParams();
-    if (query) params.append('q', query);
-    if (tag) params.append('tag', tag);
-    if (maxCalories) params.append('maxCalories', maxCalories.toString());
-    params.append('limit', limit.toString());
-
-    const res = await fetch(`${BACKEND_URL}/api/foods/search?${params.toString()}`);
-    if (res.ok) {
-      const data = await res.json();
-      return data.results || [];
-    }
-  } catch (e) {
-    console.warn('Error querying Kaggle recipes:', e);
-  }
-  return [];
-}
-
-/**
- * Retrieves full Kaggle recipe details including step-by-step instructions
- */
-export async function getRecipeDetails(recipeId: number): Promise<KaggleRecipeDetail | null> {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/recipes/${recipeId}`);
-    if (res.ok) {
-      const data = await res.json();
-      return data.recipe;
-    }
-  } catch (e) {
-    console.warn(`Error fetching recipe ${recipeId}:`, e);
-  }
-  return null;
-}
-
-/**
- * Gets live status and row counts of the Kaggle dataset index
- */
-export async function getDatasetStatus(): Promise<DatasetStatus | null> {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/dataset/status`);
+    const res = await fetch(`${BACKEND_URL}/api/config/status`, { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       return await res.json();
     }
-  } catch (e) {
+  } catch {
     // Backend offline
   }
   return null;
 }
 
 export async function getAlternatives(foodName: string, dietPreference: string): Promise<FoodAnalysis['alternatives']> {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 300));
   return DEMO_ANALYSIS.alternatives;
 }
 
