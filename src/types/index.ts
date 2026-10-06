@@ -61,6 +61,24 @@ export interface MineralInfo {
   sources: string[];
 }
 
+export interface DetectedFoodItem {
+  name: string;
+  servingSize: string;
+  servingSizeGrams: number;
+  calories: number;
+  protein: number;
+  carbohydrates: number;
+  fat: number;
+  fiber: number;
+  sugar?: number;
+  sodium?: number;
+  vitamins?: VitaminInfo[];
+  minerals?: MineralInfo[];
+  allergens?: string[];
+  dietaryTags?: DietaryTag[];
+  notes?: string;
+}
+
 export interface FoodAnalysis {
   id: string;
   userId: string;
@@ -72,6 +90,7 @@ export interface FoodAnalysis {
   servingSizeGrams: number;
   currentServings: number;
   nutrition: NutritionInfo;
+  items?: DetectedFoodItem[]; // Individual items when multiple foods are present
   allergens: string[];
   dietaryTags: DietaryTag[];
   healthConsiderations: string[];

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Camera, Upload, QrCode, Sparkles, CheckCircle2, AlertTriangle,
   RotateCcw, ChevronRight, Info, ShieldCheck, Flame, Scale, Plus,
-  Share2, ArrowRight, RefreshCw, X, Eye, BookOpen, Search, ChefHat, Database
+  Share2, ArrowRight, RefreshCw, X, Eye, BookOpen, Search, ChefHat, Database, Layers
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QRCode from 'react-qr-code';
@@ -708,6 +708,57 @@ export function FoodAnalyzerPage() {
                 </div>
               </div>
             </div>
+
+            {/* If multiple foods or individual items detected */}
+            {result.items && result.items.length > 0 && (
+              <div className="analyzer-card items-breakdown-card" style={{ marginTop: 'var(--space-6)' }}>
+                <div className="card-header-row">
+                  <div>
+                    <span className="badge badge-accent">
+                      <Layers size={14} /> Multi-Item Food Detection ({result.items.length} {result.items.length === 1 ? 'item' : 'items'})
+                    </span>
+                    <h3 className="section-heading" style={{ marginTop: '0.35rem' }}>Individual Food Item Nutrition</h3>
+                  </div>
+                  <span className="badge badge-neutral">AI Vision Breakdown</span>
+                </div>
+                <div className="detected-items-grid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: 'var(--space-4)',
+                  marginTop: 'var(--space-4)'
+                }}>
+                  {result.items.map((item, idx) => (
+                    <div key={idx} style={{
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 'var(--space-4)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
+                        <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-primary)' }}>{item.name}</h4>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.12)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                          {Math.round(item.calories * servingsMultiplier)} kcal
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-3)' }}>
+                        Portion: {item.servingSize} ({Math.round(item.servingSizeGrams * servingsMultiplier)}g)
+                      </p>
+                      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', fontSize: 'var(--text-xs)' }}>
+                        <span style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px' }}>⚡ {(item.protein * servingsMultiplier).toFixed(1)}g P</span>
+                        <span style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px' }}>🌾 {(item.carbohydrates * servingsMultiplier).toFixed(1)}g C</span>
+                        <span style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px' }}>🥑 {(item.fat * servingsMultiplier).toFixed(1)}g F</span>
+                        <span style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px' }}>🌿 {(item.fiber * servingsMultiplier).toFixed(1)}g Fiber</span>
+                      </div>
+                      {item.notes && (
+                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: 'var(--space-2)', fontStyle: 'italic' }}>
+                          {item.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Micronutrients & Detailed Facts Grid */}
             <div className="nutrition-deep-dive-grid">

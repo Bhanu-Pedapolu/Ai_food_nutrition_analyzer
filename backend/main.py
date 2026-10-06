@@ -45,31 +45,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Lazily initialized GeminiVisionService
 _gemini_service = None
+_last_api_key = None
 
 def get_gemini_service():
-    global _gemini_service
-    if _gemini_service is None:
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-        if not api_key:
-            raise HTTPException(
-                status_code=503,
-                detail="GEMINI_API_KEY is not configured. Set it in backend/.env or as an environment variable."
-            )
+    global _gemini_service, _last_api_key
+    _load_env()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key or api_key == "your_gemini_api_key_here":
+        raise HTTPException(
+            status_code=503,
+            detail="GEMINI_API_KEY is not configured. Please add your real Gemini API key to backend/.env"
+        )
+    if _gemini_service is None or _last_api_key != api_key:
         from .services.gemini_vision import GeminiVisionService
         _gemini_service = GeminiVisionService(api_key=api_key)
+        _last_api_key = api_key
     return _gemini_service
 
 
 @app.get("/api/health")
 def health_check():
+    _load_env()
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    is_valid = bool(api_key and api_key != "your_gemini_api_key_here")
     return {
         "status": "healthy",
         "service": "NutriVision API — Gemini Vision Edition",
         "version": "2.0.0",
-        "gemini_configured": bool(api_key),
+        "gemini_configured": is_valid,
     }
 
 
@@ -120,10 +124,12 @@ async def analyze_food(request: Request):
 @app.get("/api/config/status")
 def config_status():
     """Returns the current API configuration status."""
+    _load_env()
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    is_valid = bool(api_key and api_key != "your_gemini_api_key_here")
     return {
-        "geminiConfigured": bool(api_key),
-        "message": "Ready" if api_key else "Please set GEMINI_API_KEY in backend/.env"
+        "geminiConfigured": is_valid,
+        "message": "Ready" if is_valid else "Please set your real GEMINI_API_KEY in backend/.env"
     }
 
 

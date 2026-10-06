@@ -1,7 +1,8 @@
 """
-NutriVision — Gemini Vision Food Analysis Service
-Direct Google Gemini API integration for real AI food recognition.
-Uses requests to talk directly to Google Generative Language API — fast, lightweight, and robust.
+NutriVision — Google Gemini Vision Food Recognition & Nutrition Service
+Powered by the official Google GenAI Python SDK (`google-genai`).
+Accurately identifies single or multiple food items, estimates portions,
+and provides clinical macro & micronutrient analysis.
 """
 
 import io
@@ -9,172 +10,228 @@ import os
 import json
 import re
 import base64
-import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from PIL import Image
 
-GEMINI_API_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+GEMINI_FOOD_PROMPT = """You are a certified clinical nutritionist and expert food scientist with deep mastery of world cuisines, ingredient identification, and dietary analysis.
 
-GEMINI_FOOD_PROMPT = """You are a world-class AI clinical nutritionist and computer vision food expert.
+Analyze this food image carefully and thoroughly:
+1. Identify all foods, dishes, or items visible.
+2. If MULTIPLE separate food items are present (e.g., rice, curry, salad, and bread on a thali, or steak with potatoes and asparagus), identify EACH item separately under the "items" array, with its own specific name, serving size, calories, protein, carbs, fat, fiber, sugar, sodium, vitamins, and minerals.
+3. Calculate the COMBINED total nutrition for the entire meal under the main "nutrition" field.
+4. If only ONE food item is present, still list it under "items" as the single item.
+5. Provide accurate, realistic clinical nutrition numbers (calories, protein in grams, carbohydrates in grams, fat in grams, fiber in grams, sugar in grams, sodium in mg, cholesterol in mg, saturatedFat in grams).
+6. Detect any present food allergens (from Dairy, Gluten/Wheat, Peanuts, Tree Nuts, Eggs, Soy, Fish, Shellfish, Sesame, Sulfites).
+7. Assign accurate dietary tags (from: vegan, vegetarian, non-vegetarian, eggetarian, high-protein, high-fiber, low-carb, low-fat, gluten-free, dairy-free, nut-free, keto-friendly, paleo-friendly, diabetic-friendly).
+8. List at least 3 key vitamins and 3 minerals with specific amounts and their health roles.
+9. Provide clinical health considerations and at least 2 healthier alternative swaps.
+10. Provide traditional cooking/preparation instructions for the meal.
 
-Analyze this food image carefully.
-Identify the EXACT dish, food item, beverage, or meal shown. DO NOT make generic guesses. Be precise.
-For example:
-- If it's a pizza, specify the type: "Margherita Pizza", "Pepperoni Pizza Slice", etc.
-- If it's an Indian dish, specify accurately: "Paneer Butter Masala with Naan", "Chicken Biryani", "Masala Dosa", "Samosa", etc.
-- If it's a salad, specify: "Greek Salad with Feta", "Caesar Salad with Grilled Chicken", etc.
-- If it's fruit: "Sliced Fresh Mangoes", "Avocado Toast with Poached Egg", etc.
-
-Estimate the portion size shown, break down the ingredients, and calculate accurate macronutrients and micronutrients.
-
-Respond ONLY with a valid JSON object with EXACTLY this structure (no markdown fences, no explanatory text):
+Respond ONLY with a valid JSON object matching this EXACT schema (no markdown formatting, no code blocks, no other text):
 {
-  "foodName": "Specific Name of the Dish",
-  "confidence": 95,
-  "possibleIngredients": ["Ingredient 1", "Ingredient 2", "Ingredient 3", "Ingredient 4", "Ingredient 5"],
-  "servingSize": "1 serving (350g)",
-  "servingSizeGrams": 350,
+  "foodName": "Overall Meal Name (e.g., 'Chicken Tikka Masala with Jeera Rice and Garlic Naan' or 'Grilled Salmon with Roasted Asparagus')",
+  "confidence": 96,
+  "possibleIngredients": ["Ingredient 1", "Ingredient 2", "Ingredient 3", "Ingredient 4", "Ingredient 5", "Ingredient 6"],
+  "servingSize": "1 meal (450g)",
+  "servingSizeGrams": 450,
+  "items": [
+    {
+      "name": "Specific Food Item Name 1",
+      "servingSize": "1 cup (200g)",
+      "servingSizeGrams": 200,
+      "calories": 250,
+      "protein": 5.0,
+      "carbohydrates": 45.0,
+      "fat": 3.0,
+      "fiber": 2.5,
+      "sugar": 0.5,
+      "sodium": 180,
+      "notes": "Primary complex carbohydrate source"
+    },
+    {
+      "name": "Specific Food Item Name 2",
+      "servingSize": "1 bowl (180g)",
+      "servingSizeGrams": 180,
+      "calories": 320,
+      "protein": 28.0,
+      "carbohydrates": 10.0,
+      "fat": 16.0,
+      "fiber": 3.0,
+      "sugar": 4.0,
+      "sodium": 520,
+      "notes": "Lean protein with aromatic spices"
+    }
+  ],
   "nutrition": {
-    "calories": 450,
-    "protein": 24.5,
-    "carbohydrates": 42.0,
-    "fat": 18.0,
-    "fiber": 6.2,
-    "sugar": 5.0,
-    "sodium": 620,
-    "cholesterol": 45,
-    "saturatedFat": 4.5,
+    "calories": 570,
+    "protein": 33.0,
+    "carbohydrates": 55.0,
+    "fat": 19.0,
+    "fiber": 5.5,
+    "sugar": 4.5,
+    "sodium": 700,
+    "cholesterol": 65,
+    "saturatedFat": 5.0,
     "vitamins": [
-      {"name": "Vitamin A", "amount": "450", "unit": "mcg", "dailyPercent": 50, "role": "Vision & immune support", "sources": ["Carrots", "Spinach"]},
-      {"name": "Vitamin C", "amount": "35", "unit": "mg", "dailyPercent": 39, "role": "Antioxidant & collagen synthesis", "sources": ["Tomatoes", "Citrus"]},
-      {"name": "Vitamin D", "amount": "2.5", "unit": "mcg", "dailyPercent": 13, "role": "Bone health & calcium balance", "sources": ["Fortified dairy", "Egg"]}
+      {"name": "Vitamin A", "amount": "420", "unit": "mcg", "dailyPercent": 47, "role": "Eye health & epithelial immunity", "sources": ["Tomatoes", "Spices"]},
+      {"name": "Vitamin C", "amount": "38", "unit": "mg", "dailyPercent": 42, "role": "Antioxidant & iron absorption", "sources": ["Bell peppers", "Coriander", "Lemon"]},
+      {"name": "Vitamin D", "amount": "2.2", "unit": "mcg", "dailyPercent": 11, "role": "Bone density & endocrine regulation", "sources": ["Dairy base"]}
     ],
     "minerals": [
-      {"name": "Iron", "amount": "3.5", "unit": "mg", "dailyPercent": 19, "role": "Oxygen transport & energy metabolism", "sources": ["Legumes", "Greens"]},
-      {"name": "Calcium", "amount": "180", "unit": "mg", "dailyPercent": 18, "role": "Bone mineral density & muscle function", "sources": ["Dairy", "Seeds"]},
-      {"name": "Potassium", "amount": "520", "unit": "mg", "dailyPercent": 11, "role": "Electrolyte balance & cardiovascular health", "sources": ["Potatoes", "Bananas"]}
+      {"name": "Iron", "amount": "3.8", "unit": "mg", "dailyPercent": 21, "role": "Hemoglobin & oxygen transport", "sources": ["Poultry", "Rice"]},
+      {"name": "Calcium", "amount": "190", "unit": "mg", "dailyPercent": 19, "role": "Skeletal support & muscle contraction", "sources": ["Yogurt/cream"]},
+      {"name": "Potassium", "amount": "610", "unit": "mg", "dailyPercent": 13, "role": "Electrolyte homeostasis & blood pressure regulation", "sources": ["Tomatoes", "Chicken"]}
     ]
   },
-  "allergens": ["Gluten", "Dairy"],
-  "dietaryTags": ["high-protein", "vegetarian"],
+  "allergens": ["Dairy", "Gluten"],
+  "dietaryTags": ["high-protein"],
   "healthConsiderations": [
-    "Rich in dietary protein which aids muscle repair and satiety.",
-    "Moderate sodium level; ensure adequate hydration."
+    "High in complete protein which stimulates muscle protein synthesis and prolongs satiety.",
+    "Balanced complex carbohydrates providing steady sustained energy release."
   ],
   "alternatives": [
     {
-      "name": "Grilled Vegetable & Quinoa Bowl",
+      "name": "Tandoori Chicken Skewers with Brown Rice & Cucumber Salad",
       "imageUrl": "/salad-bowl.jpg",
-      "calories": 320,
-      "protein": 14.0,
-      "carbs": 48.0,
-      "fat": 8.0,
-      "reason": "Lower calorie, higher complex fiber alternative",
-      "healthBenefit": "Improves glycemic control and digestion"
+      "calories": 410,
+      "protein": 38.0,
+      "carbs": 38.0,
+      "fat": 9.0,
+      "reason": "Lower calorie and saturated fat option with whole grains",
+      "healthBenefit": "Reduces dietary saturated fats while increasing digestive fiber"
     },
     {
-      "name": "Steamed Protein & Greens",
+      "name": "Grilled Fish Fillet with Steamed Quinoa & Herb Greens",
       "imageUrl": "/salad-bowl.jpg",
-      "calories": 280,
-      "protein": 28.0,
-      "carbs": 12.0,
-      "fat": 6.0,
-      "reason": "Leaner option with lower saturated fats",
-      "healthBenefit": "Supports lean muscle retention while cutting calories"
+      "calories": 360,
+      "protein": 32.0,
+      "carbs": 30.0,
+      "fat": 8.0,
+      "reason": "Rich in omega-3 fatty acids with a low glycemic load",
+      "healthBenefit": "Supports cardiovascular resilience and cognitive function"
     }
   ],
-  "recipeInstructions": "Lightly sear the main ingredients, combine with fresh aromatics, simmer until tender, and garnish with fresh herbs before serving."
+  "recipeInstructions": "Marinate the protein in aromatic spices and yogurt, sear until charred, simmer in spiced tomato gravy, and serve hot accompanied by freshly steamed rice."
 }
 """
 
 
 class GeminiVisionService:
-    """Provides visual food analysis using Google's Gemini Vision API."""
+    """Provides visual food analysis using Google's official Gemini SDK."""
 
     def __init__(self, api_key: str):
         self.api_key = api_key.strip()
+        self._genai_client = None
+
+    def _get_client(self):
+        """Initializes the official Google GenAI client."""
+        if self._genai_client is None:
+            try:
+                from google import genai
+                self._genai_client = genai.Client(api_key=self.api_key)
+            except Exception as e:
+                # Log without exposing key
+                self._genai_client = None
+        return self._genai_client
 
     def analyze_image(
         self,
         image_bytes: bytes,
         image_url: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Sends food image to Google Gemini Vision API and returns full nutritional profile."""
+        """
+        Sends the food image to Google Gemini using the official Python SDK.
+        Accurately identifies all foods (including multiple items) and computes complete nutrition.
+        """
         if not self.api_key or self.api_key == "your_gemini_api_key_here":
-            raise ValueError("GEMINI_API_KEY is not configured. Please add your key to backend/.env")
+            raise ValueError(
+                "GEMINI_API_KEY is not configured or still has the placeholder. "
+                "Please set your real Gemini API key in backend/.env"
+            )
 
-        # 1. Process & compress image for Gemini API
+        # 1. Process & compress image for optimal Gemini processing
         try:
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-            # Resize if very large for faster upload
-            max_size = 1024
+            max_size = 1200
             if max(image.size) > max_size:
                 image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
 
             buf = io.BytesIO()
             image.save(buf, format="JPEG", quality=85)
             jpeg_bytes = buf.getvalue()
-            b64_image = base64.b64encode(jpeg_bytes).decode("utf-8")
         except Exception as e:
             raise ValueError(f"Failed to process image: {e}")
 
-        # 2. Call Gemini API via models: gemini-1.5-flash or gemini-2.0-flash
-        models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
-        last_error = None
         raw_text = None
+        last_error = None
 
-        for model in models_to_try:
-            url = GEMINI_API_URL_TEMPLATE.format(model=model, api_key=self.api_key)
-            payload = {
-                "contents": [
-                    {
-                        "parts": [
-                            {"text": GEMINI_FOOD_PROMPT},
-                            {
-                                "inline_data": {
-                                    "mime_type": "image/jpeg",
-                                    "data": b64_image
+        # 2. Try official Google GenAI Python SDK (`from google import genai`)
+        client = self._get_client()
+        if client is not None:
+            from google.genai import types
+            models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+            for model_name in models_to_try:
+                try:
+                    part = types.Part.from_bytes(data=jpeg_bytes, mime_type="image/jpeg")
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=[part, GEMINI_FOOD_PROMPT],
+                        config=types.GenerateContentConfig(
+                            temperature=0.2,
+                            response_mime_type="application/json",
+                        )
+                    )
+                    if response and response.text:
+                        raw_text = response.text.strip()
+                        break
+                except Exception as ex:
+                    last_error = str(ex)
+
+        # 3. Fallback to direct Generative Language API if SDK call fails
+        if not raw_text:
+            import requests
+            b64_image = base64.b64encode(jpeg_bytes).decode("utf-8")
+            api_models = ["gemini-2.0-flash", "gemini-1.5-flash"]
+            for model in api_models:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.api_key}"
+                payload = {
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": GEMINI_FOOD_PROMPT},
+                                {
+                                    "inline_data": {
+                                        "mime_type": "image/jpeg",
+                                        "data": b64_image
+                                    }
                                 }
-                            }
-                        ]
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.2,
+                        "responseMimeType": "application/json"
                     }
-                ],
-                "generationConfig": {
-                    "temperature": 0.2,
-                    "maxOutputTokens": 2048,
-                    "responseMimeType": "application/json"
                 }
-            }
-
-            try:
-                resp = requests.post(
-                    url,
-                    headers={"Content-Type": "application/json"},
-                    json=payload,
-                    timeout=30
-                )
-
-                if resp.status_code == 200:
-                    data_json = resp.json()
-                    candidates = data_json.get("candidates", [])
-                    if candidates and "content" in candidates[0]:
-                        parts = candidates[0]["content"].get("parts", [])
-                        if parts and "text" in parts[0]:
-                            raw_text = parts[0]["text"]
-                            break
-                elif resp.status_code in [400, 404]:
-                    # Model might not be supported on this version or bad request, try next
-                    last_error = f"Model {model} returned HTTP {resp.status_code}: {resp.text}"
-                    continue
-                else:
-                    last_error = f"Gemini API returned HTTP {resp.status_code}: {resp.text}"
-            except Exception as ex:
-                last_error = str(ex)
+                try:
+                    resp = requests.post(url, json=payload, timeout=35)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates and "content" in candidates[0]:
+                            parts = candidates[0]["content"].get("parts", [])
+                            if parts and "text" in parts[0]:
+                                raw_text = parts[0]["text"]
+                                break
+                    else:
+                        last_error = f"API returned HTTP {resp.status_code}"
+                except Exception as ex:
+                    last_error = str(ex)
 
         if not raw_text:
-            raise RuntimeError(f"Failed to get response from Gemini Vision API: {last_error}")
+            raise RuntimeError(f"Gemini Vision analysis failed: {last_error or 'No response from model'}")
 
-        # 3. Clean and parse JSON response
+        # 4. Parse JSON response cleanly
         clean_text = raw_text.strip()
         clean_text = re.sub(r"^```(?:json)?\s*", "", clean_text, flags=re.MULTILINE)
         clean_text = re.sub(r"\s*```$", "", clean_text, flags=re.MULTILINE)
@@ -187,21 +244,39 @@ class GeminiVisionService:
             if match:
                 parsed = json.loads(match.group())
             else:
-                raise ValueError(f"Invalid JSON returned by Gemini: {clean_text[:200]}")
+                raise ValueError("Gemini returned invalid JSON structure.")
 
-        # 4. Standardize output for NutriVision
+        # 5. Normalize and guarantee all NutriVision fields
         import random
         parsed["id"] = f"gemini-scan-{random.randint(100000, 999999)}"
         parsed["imageUrl"] = image_url or "/salad-bowl.jpg"
         parsed["currentServings"] = 1
         parsed["source"] = "upload"
-        parsed["datasetSource"] = "gemini-vision-api"
+        parsed["datasetSource"] = "google-gemini-sdk"
         parsed.setdefault("recipeId", None)
         parsed.setdefault("allergens", [])
         parsed.setdefault("dietaryTags", [])
         parsed.setdefault("healthConsiderations", [])
         parsed.setdefault("alternatives", [])
         parsed.setdefault("recipeInstructions", "")
+        parsed.setdefault("possibleIngredients", [])
+
+        # Ensure items array exists (even if single item)
+        if "items" not in parsed or not isinstance(parsed["items"], list) or len(parsed["items"]) == 0:
+            parsed["items"] = [
+                {
+                    "name": parsed.get("foodName", "Main Dish"),
+                    "servingSize": parsed.get("servingSize", "1 serving"),
+                    "servingSizeGrams": parsed.get("servingSizeGrams", 300),
+                    "calories": parsed.get("nutrition", {}).get("calories", 0),
+                    "protein": parsed.get("nutrition", {}).get("protein", 0),
+                    "carbohydrates": parsed.get("nutrition", {}).get("carbohydrates", 0),
+                    "fat": parsed.get("nutrition", {}).get("fat", 0),
+                    "fiber": parsed.get("nutrition", {}).get("fiber", 0),
+                    "sugar": parsed.get("nutrition", {}).get("sugar", 0),
+                    "sodium": parsed.get("nutrition", {}).get("sodium", 0),
+                }
+            ]
 
         return parsed
 
