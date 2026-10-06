@@ -316,23 +316,33 @@ export function FoodAnalyzerPage() {
 
       setTimeout(() => {
         setIsAnalyzing(false);
-        const finalData: FoodAnalysis = mockOverride ? {
-          ...mockOverride,
-          imageUrl,
-          createdAt: new Date(),
-        } : {
-          ...(analysisResult.data || DEMO_ANALYSIS),
-          imageUrl,
-          createdAt: new Date(),
-        };
-        setResult(finalData);
-        setCurrentAnalysis(finalData);
-        setServingsMultiplier(1);
-        toast.success(`Identified: ${finalData.foodName}`, { icon: '✨' });
-      }, 500);
-    } catch {
+        if (mockOverride) {
+          const finalData: FoodAnalysis = {
+            ...mockOverride,
+            imageUrl,
+            createdAt: new Date(),
+          };
+          setResult(finalData);
+          setCurrentAnalysis(finalData);
+          setServingsMultiplier(1);
+          toast.success(`Loaded Preset: ${finalData.foodName}`, { icon: '✨' });
+        } else if (analysisResult.success && analysisResult.data) {
+          const finalData: FoodAnalysis = {
+            ...analysisResult.data,
+            imageUrl,
+            createdAt: new Date(),
+          };
+          setResult(finalData);
+          setCurrentAnalysis(finalData);
+          setServingsMultiplier(1);
+          toast.success(`Gemini Identified: ${finalData.foodName}`, { icon: '✨' });
+        } else {
+          toast.error(analysisResult.error || 'Gemini Vision could not analyze this image. Please try again.');
+        }
+      }, 400);
+    } catch (err: any) {
       setIsAnalyzing(false);
-      toast.error('Analysis failed. Using cached demo data.');
+      toast.error(err.message || 'Analysis failed. Please check your connection.');
     }
   };
 

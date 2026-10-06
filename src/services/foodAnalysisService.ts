@@ -23,7 +23,7 @@ export async function analyzeFood(
   titleHint?: string
 ): Promise<AnalysisResult> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout for Gemini Vision
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for Gemini Vision
 
   try {
     let response: Response;
@@ -83,23 +83,11 @@ export async function analyzeFood(
     throw new Error(`Backend returned HTTP ${response.status}`);
   } catch (err: any) {
     clearTimeout(timeoutId);
-    console.warn('Backend API note:', err.message || err);
-    
-    // Fallback to demo analysis if backend is offline or API key pending
-    const analysis: FoodAnalysis = {
-      ...DEMO_ANALYSIS,
-      id: `analysis-${Date.now()}`,
-      userId,
-      createdAt: new Date(),
-      source: typeof imageFile === 'string' ? 'qr' : 'upload',
-      datasetSource: 'gemini-vision-ai'
-    };
+    console.error('Gemini Vision analysis error:', err.message || err);
 
     return { 
-      success: true, 
-      data: analysis, 
-      isDemoMode: true,
-      error: err.message
+      success: false, 
+      error: err.message || 'Gemini Vision analysis could not be completed.'
     };
   }
 }
