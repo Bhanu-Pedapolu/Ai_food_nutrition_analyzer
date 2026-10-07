@@ -1207,9 +1207,14 @@ export function FoodAnalyzerPage() {
                     </a>
                   </div>
 
-                  <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.6rem', textAlign: 'center', lineHeight: 1.4 }}>
-                    📶 Phone and laptop must be on the same Wi-Fi / Hotspot. If your phone browser says "This site can't be reached", you can test immediately with the button above.
-                  </p>
+                  <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.8rem', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '8px', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#60a5fa', fontSize: '0.78rem', fontWeight: 700 }}>
+                      <Info size={14} /> Why it works on your phone but not other phones:
+                    </div>
+                    <p style={{ fontSize: '0.73rem', color: '#94a3b8', margin: '0.3rem 0 0', lineHeight: 1.45 }}>
+                      Your laptop is connected through your personal phone hotspot (<code>10.141.105.192</code>). To scan from another phone, <strong>connect that phone to your hotspot / Wi-Fi first</strong>. Other phones using their own mobile SIM data cannot reach local IP addresses.
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
