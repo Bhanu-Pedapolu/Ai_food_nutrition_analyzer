@@ -29,7 +29,8 @@ export function QRCompanionPage() {
   const [synced, setSynced] = useState(false);
   const [connected, setConnected] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Ping backend on mount to notify laptop that phone has joined
   useEffect(() => {
@@ -109,10 +110,9 @@ export function QRCompanionPage() {
     setSelectedPhoto(null);
     setSynced(false);
     setErrorMsg(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-      fileInputRef.current.click();
-    }
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+    cameraInputRef.current?.click();
   };
 
   return (
@@ -147,28 +147,63 @@ export function QRCompanionPage() {
           {selectedPhoto ? (
             <div className="selected-preview-wrap">
               <img src={selectedPhoto} alt="Selected meal" className="selected-preview-img" />
-              <button
-                className="btn btn-secondary btn-sm change-photo-btn"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <RefreshCw size={14} /> Retake Photo
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem' }}>
+                <button
+                  className="btn btn-secondary btn-sm change-photo-btn"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera size={14} /> Retake Camera
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm change-photo-btn"
+                  onClick={() => galleryInputRef.current?.click()}
+                >
+                  <Upload size={14} /> From Gallery
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="camera-trigger-box" onClick={() => fileInputRef.current?.click()}>
-              <div className="camera-trigger-icon">
-                <Camera size={36} />
+            <div className="camera-trigger-box">
+              <div className="camera-trigger-icon" onClick={() => cameraInputRef.current?.click()} style={{ cursor: 'pointer' }}>
+                <Camera size={42} />
               </div>
               <h3>Snap Your Meal</h3>
-              <p>Tap here to open phone camera or select photo from your gallery</p>
+              <p>Take a live picture of your food or choose an existing photo</p>
+              
+              <div style={{ display: 'flex', gap: '0.6rem', width: '100%', marginTop: '0.75rem', justifyContent: 'center' }}>
+                <button
+                  className="btn btn-primary btn-md"
+                  onClick={() => cameraInputRef.current?.click()}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <Camera size={16} /> Open Camera
+                </button>
+                <button
+                  className="btn btn-secondary btn-md"
+                  onClick={() => galleryInputRef.current?.click()}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <Upload size={16} /> Choose Photo
+                </button>
+              </div>
             </div>
           )}
 
+          {/* Camera input with environment capture for rear camera */}
           <input
             type="file"
-            ref={fileInputRef}
+            ref={cameraInputRef}
             accept="image/*"
             capture="environment"
+            onChange={handlePhotoSelect}
+            style={{ display: 'none' }}
+          />
+
+          {/* Gallery input without capture attribute */}
+          <input
+            type="file"
+            ref={galleryInputRef}
+            accept="image/*"
             onChange={handlePhotoSelect}
             style={{ display: 'none' }}
           />
@@ -199,15 +234,15 @@ export function QRCompanionPage() {
             >
               {isTransmitting ? (
                 <>
-                  <Sparkles size={18} className="spin-icon" /> Beaming to Desktop...
+                  <Sparkles size={18} className="spin-icon" /> Beaming to Laptop...
                 </>
               ) : synced ? (
                 <>
-                  <Check size={18} /> Synced to Desktop Screen!
+                  <Check size={18} /> Sent to Laptop Screen!
                 </>
               ) : (
                 <>
-                  <ArrowRight size={18} /> Beam Photo to Desktop
+                  <ArrowRight size={18} /> Beam Picture to Laptop Screen 🚀
                 </>
               )}
             </button>
@@ -220,15 +255,15 @@ export function QRCompanionPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <CheckCircle2 size={32} color="#10b981" />
-            <h3>Meal Sent Successfully!</h3>
-            <p>Your desktop NutriVision screen is now processing the image with AI. Look at your computer screen for complete calories, macros, and clinical breakdown.</p>
+            <CheckCircle2 size={36} color="#10b981" />
+            <h3>Picture Sent to Your Laptop!</h3>
+            <p>The photo is now showing directly on your laptop screen. Look at your computer and click <strong>"Scan & Analyze"</strong> to run AI nutrition breakdown.</p>
             <button
               className="btn btn-secondary btn-sm"
-              style={{ marginTop: '1rem', width: '100%' }}
+              style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}
               onClick={handleResetForNewPhoto}
             >
-              <Camera size={14} style={{ marginRight: '6px' }} /> Send Another Meal Photo
+              <Camera size={14} style={{ marginRight: '6px' }} /> Take Another Meal Photo
             </button>
           </motion.div>
         )}

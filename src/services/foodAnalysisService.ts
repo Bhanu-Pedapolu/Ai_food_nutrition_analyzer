@@ -21,6 +21,7 @@ export interface AnalysisResult {
 
 export interface NetworkInfo {
   lan_ip: string;
+  all_ips?: string[];
   backend_url: string;
   companion_path: string;
 }
@@ -30,6 +31,18 @@ export interface QRSessionStatus {
   connected: boolean;
   image?: string | null;
   device?: string;
+}
+
+/**
+ * Resets a QR session state so a new photo can be beamed.
+ */
+export async function resetQRSession(sessionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(getApiUrl(`/api/qr/session/${sessionId}/reset`), { method: 'POST' });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**

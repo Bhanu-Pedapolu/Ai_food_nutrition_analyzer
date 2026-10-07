@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Camera, Upload, QrCode, Sparkles, CheckCircle2, AlertTriangle,
   RotateCcw, ChevronRight, Info, ShieldCheck, Flame, Scale, Plus,
-  Share2, ArrowRight, RefreshCw, X, Eye, BookOpen, Search, ChefHat, Database, Layers
+  Share2, ArrowRight, RefreshCw, X, Eye, BookOpen, Search, ChefHat, Database, Layers,
+  Smartphone, Copy, Check, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QRCode from 'react-qr-code';
@@ -14,7 +15,8 @@ import {
   scaleNutrition, 
   getBackendStatus,
   getNetworkInfo,
-  checkQRSession
+  checkQRSession,
+  resetQRSession
 } from '../services/foodAnalysisService';
 import { DEMO_ANALYSIS, FOOD_IMAGES } from '../data/demoData';
 import type { FoodAnalysis, AlternativeFood } from '../types';
@@ -213,8 +215,17 @@ export function FoodAnalyzerPage() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [geminiConfigured, setGeminiConfigured] = useState<boolean | null>(null);
   const [qrSessionId] = useState(() => 'nv-sync-' + Math.random().toString(36).substring(2, 8));
-  const [lanIp, setLanIp] = useState<string | null>(null);
+  const [lanIp, setLanIp] = useState<string>('10.141.105.192');
+  const [customIp, setCustomIp] = useState<string>('10.141.105.192');
+  const [isEditingIp, setIsEditingIp] = useState(false);
+  const [allIps, setAllIps] = useState<string[]>(['10.141.105.192']);
   const [qrPhoneConnected, setQrPhoneConnected] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [pendingMobilePhoto, setPendingMobilePhoto] = useState<{
+    image: string;
+    source: string;
+    timestamp: Date;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -225,6 +236,10 @@ export function FoodAnalyzerPage() {
     getNetworkInfo().then(info => {
       if (info?.lan_ip) {
         setLanIp(info.lan_ip);
+        setCustomIp(info.lan_ip);
+      }
+      if (info?.all_ips && info.all_ips.length > 0) {
+        setAllIps(info.all_ips);
       }
     });
   }, []);
@@ -245,13 +260,19 @@ export function FoodAnalyzerPage() {
           }
 
           if (session.status === 'ready' && session.image) {
-            toast.success('📱 Photo received from mobile device! Analyzing with AI...', {
-              icon: '🚀',
-              duration: 4000
+            toast.success('📱 Photo received from your phone! Ready to scan on laptop.', {
+              icon: '📸',
+              duration: 4500
             });
             setShowQRModal(false);
             setActiveTab('upload');
-            handleAnalyzeImage(session.image, `Phone Scan (${session.device || 'Mobile'})`);
+            // Directly show the taken picture on the user's laptop screen first
+            setPendingMobilePhoto({
+              image: session.image,
+              source: session.device || 'Mobile Phone Camera',
+              timestamp: new Date()
+            });
+            setSelectedImage(session.image);
             return;
           }
         }
@@ -275,7 +296,13 @@ export function FoodAnalyzerPage() {
   // Check if an image was beamed via QR companion (Zustand fallback)
   useEffect(() => {
     if (qrImageUrl) {
-      handleAnalyzeImage(qrImageUrl, 'QR Mobile Upload');
+      setPendingMobilePhoto({
+        image: qrImageUrl,
+        source: 'Mobile QR Companion',
+        timestamp: new Date()
+      });
+      setSelectedImage(qrImageUrl);
+      setActiveTab('upload');
     }
   }, [qrImageUrl]);
 
@@ -450,7 +477,7 @@ export function FoodAnalyzerPage() {
   };
 
   const companionPort = window.location.port ? `:${window.location.port}` : '';
-  const mobileHost = lanIp || window.location.hostname;
+  const mobileHost = customIp.trim() || lanIp || window.location.hostname;
   const companionUrl = `${window.location.protocol}//${mobileHost}${companionPort}/qr-mobile?session=${qrSessionId}`;
 
   return (
@@ -501,40 +528,98 @@ export function FoodAnalyzerPage() {
           </div>
 
           <div className="analyzer-tab-content">
-            {/* Upload Zone */}
+            {/* Upload Zone or Beamed Mobile Photo */}
             {activeTab === 'upload' && (
-              <div
-                className="dropzone"
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => handleAnalyzeImage(event.target?.result as string, file.name);
-                    reader.readAsDataURL(file);
-                  }
-                }}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  style={{ display: 'none' }}
-                />
-                <div className="dropzone__icon-wrap">
-                  <Upload size={32} />
+              pendingMobilePhoto ? (
+                <div className="mobile-photo-stage">
+                  <div className="mobile-photo-stage__left">
+                    <div className="mobile-photo-preview-frame">
+                      <img src={pendingMobilePhoto.image} alt="Photo taken from phone" className="mobile-photo-preview-img" />
+                      <div className="mobile-photo-overlay-tag">
+                        <Smartphone size={14} /> Beamed from {pendingMobilePhoto.source}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mobile-photo-stage__right">
+                    <div className="mobile-photo-header">
+                      <span className="badge badge-accent">
+                        <Sparkles size={14} /> Photo Received from Smartphone
+                      </span>
+                      <h2 className="mobile-photo-stage__title">Food Photo Ready to Scan</h2>
+                      <p className="mobile-photo-stage__desc">
+                        Your smartphone took this picture and beamed it directly to your laptop screen. Inspect the image and click below to run Google Gemini AI nutrition analysis.
+                      </p>
+                    </div>
+
+                    <div className="mobile-photo-stage__actions">
+                      <button
+                        className="btn btn-primary btn-lg scan-now-btn"
+                        onClick={() => {
+                          const img = pendingMobilePhoto.image;
+                          const src = pendingMobilePhoto.source;
+                          setPendingMobilePhoto(null);
+                          handleAnalyzeImage(img, `Phone Scan (${src})`);
+                        }}
+                      >
+                        <Sparkles size={18} className="pulse-icon" /> ⚡ Scan & Analyze Nutrition Now
+                      </button>
+
+                      <div className="secondary-action-row">
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setPendingMobilePhoto(null);
+                            setShowQRModal(true);
+                            resetQRSession(qrSessionId);
+                          }}
+                        >
+                          <RefreshCw size={14} /> Retake from Phone
+                        </button>
+
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => setPendingMobilePhoto(null)}
+                        >
+                          <X size={14} /> Choose Different Photo
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <h3>Drag & Drop your food photo here</h3>
-                <p>or click to browse from your device (JPG, PNG, WEBP up to 15MB)</p>
-                <div className="dropzone__badges">
-                  <span>✨ Multi-Item Detection</span>
-                  <span>🥗 Macro Breakdown</span>
-                  <span>⚡ 3.5s Processing</span>
+              ) : (
+                <div
+                  className="dropzone"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => handleAnalyzeImage(event.target?.result as string, file.name);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <div className="dropzone__icon-wrap">
+                    <Upload size={32} />
+                  </div>
+                  <h3>Drag & Drop your food photo here</h3>
+                  <p>or click to browse from your device (JPG, PNG, WEBP up to 15MB)</p>
+                  <div className="dropzone__badges">
+                    <span>✨ Multi-Item Detection</span>
+                    <span>🥗 Macro Breakdown</span>
+                    <span>⚡ 3.5s Processing</span>
+                  </div>
                 </div>
-              </div>
+              )
             )}
 
             {/* Camera View */}
@@ -597,7 +682,7 @@ export function FoodAnalyzerPage() {
                   <QRCode value={companionUrl} size={150} fgColor="#0f172a" bgColor="#ffffff" />
                 </div>
                 <div className="qr-sync-text">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
                     <span className="badge badge-accent">
                       <QrCode size={12} /> Live Device Sync
                     </span>
@@ -607,22 +692,67 @@ export function FoodAnalyzerPage() {
                       <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>📡 Waiting for Phone Scan</span>
                     )}
                   </div>
-                  <h3>Scan to capture directly from phone</h3>
-                  <p>Point your smartphone camera at this QR code. Snap your meal at your dining table and watch the nutrition analysis appear automatically right here on your desktop screen!</p>
-                  <div className="qr-status-indicator" style={{ margin: '0.75rem 0' }}>
+                  <h3>Scan to snap directly from phone</h3>
+                  <p>Point your smartphone camera at this QR code. Snap your meal at your dining table — the photo will directly appear on your laptop screen ready to scan!</p>
+                  
+                  <div className="qr-status-indicator" style={{ margin: '0.6rem 0' }}>
                     <span className={`pulse-dot ${qrPhoneConnected ? 'active' : ''}`}></span>{' '}
                     {qrPhoneConnected 
                       ? 'Smartphone linked! Snap a photo on your phone now.' 
                       : 'Listening for incoming phone scan...'}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+
+                  {/* IP Toolbar & Direct Links */}
+                  <div className="qr-ip-toolbar">
+                    <div className="qr-ip-row">
+                      <span className="qr-ip-label">Target URL:</span>
+                      <code className="qr-ip-code">{companionUrl}</code>
+                      <button
+                        className="btn btn-secondary btn-xs copy-ip-btn"
+                        onClick={() => {
+                          navigator.clipboard.writeText(companionUrl);
+                          setCopiedLink(true);
+                          toast.success('Mobile companion URL copied to clipboard!', { icon: '📋' });
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                      >
+                        {copiedLink ? <Check size={12} /> : <Copy size={12} />} {copiedLink ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+
+                    <div className="qr-ip-edit-row">
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Wi-Fi IP:</span>
+                      {isEditingIp ? (
+                        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            value={customIp}
+                            onChange={(e) => setCustomIp(e.target.value)}
+                            placeholder="e.g. 10.141.105.192"
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', borderRadius: '4px', border: '1px solid #475569', background: '#1e293b', color: '#fff' }}
+                          />
+                          <button className="btn btn-secondary btn-xs" onClick={() => setIsEditingIp(false)}>Done</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8' }}>{customIp}</span>
+                          <button className="btn btn-secondary btn-xs" onClick={() => setIsEditingIp(true)}>Change IP</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.8rem' }}>
                     <button className="btn btn-primary btn-sm" onClick={() => setShowQRModal(true)}>
                       <QrCode size={14} /> Fullscreen QR Code
                     </button>
                     <a href={companionUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
-                      Open Mobile View in New Tab <ArrowRight size={14} />
+                      <ExternalLink size={14} /> Open Mobile View (Test on Laptop)
                     </a>
                   </div>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem', marginInline: 0 }}>
+                    💡 Phone and laptop must be on the same Wi-Fi / Hotspot. If your phone shows "Site can't be reached", you can test immediately with the "Open Mobile View" button.
+                  </p>
                 </div>
               </div>
             )}
@@ -1030,14 +1160,56 @@ export function FoodAnalyzerPage() {
                     ? '🟢 Smartphone Connected! Snap or select a food photo on your phone.' 
                     : 'Listening for incoming mobile uploads... Point camera at QR code'}
                 </div>
+
                 <div className="qr-test-link-box">
-                  <span>Companion URL:</span>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', wordBreak: 'break-all', margin: '0.25rem 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>Target Mobile URL:</span>
+                    <button
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => {
+                        navigator.clipboard.writeText(companionUrl);
+                        setCopiedLink(true);
+                        toast.success('Mobile URL copied to clipboard!', { icon: '📋' });
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      }}
+                    >
+                      {copiedLink ? <Check size={12} /> : <Copy size={12} />} {copiedLink ? 'Copied' : 'Copy Link'}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#38bdf8', wordBreak: 'break-all', margin: '0.25rem 0', fontFamily: 'monospace' }}>
                     {companionUrl}
                   </div>
-                  <a href={companionUrl} target="_blank" rel="noreferrer" className="qr-companion-link">
-                    Open Companion in New Tab (Test locally) <ArrowRight size={14} />
-                  </a>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Wi-Fi IP:</span>
+                    {isEditingIp ? (
+                      <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          value={customIp}
+                          onChange={(e) => setCustomIp(e.target.value)}
+                          placeholder="10.141.105.192"
+                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', borderRadius: '4px', border: '1px solid #475569', background: '#1e293b', color: '#fff', width: '130px' }}
+                        />
+                        <button className="btn btn-secondary btn-xs" onClick={() => setIsEditingIp(false)}>Save</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f1f5f9' }}>{customIp}</span>
+                        <button className="btn btn-secondary btn-xs" onClick={() => setIsEditingIp(true)}>Change</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '0.8rem' }}>
+                    <a href={companionUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
+                      <ExternalLink size={14} /> Open Mobile View in New Tab (Test Simulator)
+                    </a>
+                  </div>
+
+                  <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.6rem', textAlign: 'center', lineHeight: 1.4 }}>
+                    📶 Phone and laptop must be on the same Wi-Fi / Hotspot. If your phone browser says "This site can't be reached", you can test immediately with the button above.
+                  </p>
                 </div>
               </div>
             </motion.div>

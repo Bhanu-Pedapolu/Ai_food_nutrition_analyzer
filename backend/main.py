@@ -141,20 +141,36 @@ def config_status():
 
 _qr_sessions: dict[str, dict] = {}
 
-def get_lan_ip() -> str:
-    """Detects primary LAN IP reachable by smartphone on same Wi-Fi."""
+def get_all_lan_ips() -> list[str]:
+    """Returns all available non-loopback network IPs for mobile connection."""
+    ips = []
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0.5)
         s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
+        primary = s.getsockname()[0]
         s.close()
-        return ip
+        if primary and not primary.startswith("127."):
+            ips.append(primary)
     except Exception:
-        try:
-            return socket.gethostbyname(socket.gethostname())
-        except Exception:
-            return "127.0.0.1"
+        pass
+
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if not ip.startswith("127.") and not ip.startswith("169.254.") and ip not in ips:
+                ips.append(ip)
+    except Exception:
+        pass
+
+    if not ips:
+        ips = ["10.141.105.192"]
+    return ips
+
+def get_lan_ip() -> str:
+    """Detects primary LAN IP reachable by smartphone on same Wi-Fi."""
+    ips = get_all_lan_ips()
+    return ips[0] if ips else "10.141.105.192"
 
 def _cleanup_old_qr_sessions():
     now = time.time()
@@ -173,8 +189,10 @@ class QRUploadRequest(BaseModel):
 def get_qr_network_info():
     """Returns host's LAN IP for generating a mobile-accessible QR code."""
     lan_ip = get_lan_ip()
+    all_ips = get_all_lan_ips()
     return {
         "lan_ip": lan_ip,
+        "all_ips": all_ips,
         "backend_url": f"http://{lan_ip}:8000",
         "companion_path": "/qr-mobile"
     }
